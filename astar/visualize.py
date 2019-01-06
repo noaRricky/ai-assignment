@@ -42,6 +42,14 @@ clock = pygame.time.Clock()
 
 
 def draw_cell(row: int, col: int, cell_color: Tuple[int, int, int]) -> None:
+    """ draw cell
+
+    Arguments:
+        row {int} -- row in maze
+        col {int} -- column in maze
+        cell_color {Tuple[int, int, int]} -- the rgb code for cell color
+    """
+
     cell_top = MAZE_TOP + row * CELL_HEIGHT
     cell_left = MAZE_LEFT + col * CELL_WIDTH
     pygame.draw.rect(screen, cell_color, pygame.Rect(
