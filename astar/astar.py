@@ -1,75 +1,76 @@
 from typing import Tuple, List
 
 import numpy as np
+import pygame
 
-POSITIONS = [(0, -1), (0, 1), (-1, 0), (1, 0),
-             (-1, -1), (-1, 1), (1, -1), (1, 1)]
+from settings import *
+from items import Maze, Node
 
 
-class Node(object):
-    """ A node class for A* Pathfinding
+# init pygame env
+pygame.init()
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+clock = pygame.time.Clock()
+
+
+def draw_cell(row: int, col: int, cell_color: Tuple[int, int, int]) -> None:
+    """ draw cell
+
+    Arguments:
+        row {int} -- row in maze
+        col {int} -- column in maze
+        cell_color {Tuple[int, int, int]} -- the rgb code for cell color
     """
 
-    def __init__(self, parent=None, position: Tuple[int, int] = None):
-        self.parent = parent
-        self.position = position
-
-        self.g = 0
-        self.h = 0
-        self.f = 0
-
-    def move(self, x: int, y: int) -> Tuple[int, int]:
-        """get new position
-
-        Arguments:
-            x {int} -- x dim movement
-            y {int} -- y dim movement
-
-        Returns:
-            Tuple[int, int] -- result positon for movement
-        """
-
-        position = self.position
-        new_position = (position[0] + x, position[1] + y)
-        return new_position
-
-    def update_value(self, current_node, end_node):
-        """ update g, h, f value depend on node
-
-            Arguments:
-                node {Node} -- current node
-        """
-        self.g = current_node.g + 1.
-        self.h = (self.position[0] - end_node.position[0])**2 + \
-            (self.position[1] - end_node.position[1])**2
-        self.f = self.g + self.h
-
-    def __eq__(self, other: Tuple):
-        return self.position == other.position
+    cell_top = MAZE_TOP + row * CELL_HEIGHT
+    cell_left = MAZE_LEFT + col * CELL_WIDTH
+    pygame.draw.rect(screen, cell_color, pygame.Rect(
+        cell_left, cell_top, CELL_WIDTH, CELL_HEIGHT))
 
 
-class Maze(object):
+def draw_maze(maze: Maze,
+              start: Tuple[int, int],
+              end: Tuple[int, int]) -> None:
+    """ draw maze
 
-    def __init__(self, maze_array: List):
-        self.maze_array = np.array(maze_array, dtype=np.int)
+    Arguments:
+        maze {Maze} -- maze object
+        start {Tuple[int, int]} -- start point
+        end {Tuple[int, int]} -- end point
+    """
+    maze_array = maze.maze_array
+    maze_height, maze_width = maze_array.shape
 
-    def is_in_maze(self, position: Tuple[int, int]) -> bool:
-        height, width = self.maze_array.shape
+    # draw maze
+    for row in range(maze_height):
+        for col in range(maze_width):
+            # set cell color
+            if maze_array[row, col] == 0:
+                cell_color = WHITE
+            else:
+                cell_color = WALL
+            draw_cell(row, col, cell_color)
 
-        if position[0] < 0 or position[1] < 0:
-            return False
-        elif position[0] < width and position[1] < height:
-            return True
-        else:
-            return False
+    # draw start and end point
+    draw_cell(start[0], start[1], BLUE)
+    draw_cell(end[0], end[1], RED)
 
-    def is_terrain(self, position: Tuple[int, int]) -> bool:
-        maze_array = self.maze_array
 
-        if maze_array[position[0], position[1]] == 0:
-            return False
-        else:
-            return True
+def draw_path(path: List[Tuple[int, int]],
+              cell_color: Tuple[int, int],) -> None:
+    """ draw path
+
+    Arguments:
+        path {List[Tuple[int, int]]} -- draw path
+    """
+    for row, col in path:
+        draw_cell(row, col, cell_color)
+    return
+
+
+def draw_node_list(node_list: List[Node], cell_color: Tuple[int, int]) -> None:
+    for node in node_list:
+        draw_cell(node.position[0], node.position[1], cell_color)
 
 
 def astar(maze: Maze, start: Tuple, end: Tuple) -> List[Tuple]:
@@ -81,7 +82,8 @@ def astar(maze: Maze, start: Tuple, end: Tuple) -> List[Tuple]:
         end {Tuple} -- end point
 
     Returns:
-        List[Tuple] -- a path from start point to end point save in a list of tuple
+        List[Tuple] -- a path from start point to
+        end point save in a list of tuple
     """
 
     # Initialize the start and end node
@@ -93,9 +95,12 @@ def astar(maze: Maze, start: Tuple, end: Tuple) -> List[Tuple]:
     # Initialize the list
     open_list = []
     close_list = []
+    path = []
 
     # Add the start node
     open_list.append(start_node)
+
+    yield open_list, close_list
 
     # Loop until you find the end
     while len(open_list) > 0:
@@ -113,12 +118,12 @@ def astar(maze: Maze, start: Tuple, end: Tuple) -> List[Tuple]:
 
         # Found the goal
         if current_node == end_node:
-            path = []
             current = current_node
             while current is not None:
                 path.append(current.position)
                 current = current.parent
-            return path[::-1]  # Reverse the path
+            yield path[::-1]  # Reverse the path
+            break
 
         # Else generate the children
         children = []
@@ -156,26 +161,54 @@ def astar(maze: Maze, start: Tuple, end: Tuple) -> List[Tuple]:
             # Add the child to the open list
             open_list.append(child)
 
+        yield open_list, close_list
+
 
 def main():
-    """The main function"""
-    maze_array = [[0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]
+    """main function"""
 
-    start = (0, 0)
-    end = (7, 6)
-    maze = Maze(maze_array)
+    # Initialize maze parameter
+    maze = Maze(MAZE_ARRAY)
 
-    path = astar(maze, start, end)
-    print(path)
+    path = None
+    find_path = True
+    running = True
+
+    alg = astar(maze, START_POINT, END_POINT)
+
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                find_path = False
+                path = None
+
+        screen.fill(BLACK)
+
+        draw_maze(maze, START_POINT, END_POINT)
+
+        if not find_path:
+            try:
+                path_list = alg.__next__()
+            except StopIteration:
+                find_path = True
+            # draw_path(path)
+            if len(path_list) == 2:
+                draw_node_list(path_list[0], RED)
+                draw_node_list(path_list[1], YELLOW)
+            else:
+                # print(path)
+                path = path_list
+                # find_path = True
+
+        if path is not None:
+            draw_path(path, ORANGE)
+
+        pygame.display.flip()
+        clock.tick(FPS)
+
+    pygame.quit()
 
 
 if __name__ == "__main__":
